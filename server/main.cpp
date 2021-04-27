@@ -21,10 +21,12 @@
 #include "Rtsp/RtspSession.h"
 #include "Rtmp/RtmpSession.h"
 #include "Shell/ShellSession.h"
-#include "Http/WebSocketSession.h"
+//#include "Http/WebSocketSession.h"
 #include "Rtp/RtpServer.h"
 #include "WebApi.h"
 #include "WebHook.h"
+
+#include "MSE/MseSession.h"
 
 #if defined(ENABLE_VERSION)
 #include "Version.h"
@@ -90,6 +92,14 @@ onceToken token1([](){
     mINI::Instance()[kPort] = 10000;
 },nullptr);
 } //namespace RtpProxy
+
+namespace MSE {
+#define MSE_FIELD "mse."
+	const string kPort = MSE_FIELD"port";
+	onceToken token1([]() {
+		mINI::Instance()[kPort] = 1980;
+	}, nullptr);
+} //namespace MSE
 
 }  // namespace mediakit
 
@@ -274,6 +284,7 @@ int start_main(int argc,char *argv[]) {
         uint16_t httpPort = mINI::Instance()[Http::kPort];
         uint16_t httpsPort = mINI::Instance()[Http::kSSLPort];
         uint16_t rtpPort = mINI::Instance()[RtpProxy::kPort];
+		uint16_t msePort = mINI::Instance()[MSE::kPort];
 
         //设置poller线程数,该函数必须在使用ZLToolKit网络相关对象之前调用才能生效
         EventPollerPool::setPoolSize(threads);
@@ -299,6 +310,8 @@ int start_main(int argc,char *argv[]) {
         RtpServer::Ptr rtpServer = std::make_shared<RtpServer>();
 #endif//defined(ENABLE_RTPPROXY)
 
+		TcpServer::Ptr mseSrv(new TcpServer());
+
         try {
             //rtsp服务器，端口默认554
             if(rtspPort) { rtspSrv->start<RtspSession>(rtspPort); }
@@ -322,6 +335,8 @@ int start_main(int argc,char *argv[]) {
             //创建rtp服务器
             if(rtpPort){ rtpServer->start(rtpPort); }
 #endif//defined(ENABLE_RTPPROXY)
+
+			mseSrv->start<WebSocketSessionAdatper<MseSessionCreator, HttpSession> >(msePort); //MSE服务
 
         }catch (std::exception &ex){
             WarnL << "端口占用或无权限:" << ex.what() << endl;
