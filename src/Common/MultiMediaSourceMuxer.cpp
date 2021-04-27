@@ -22,7 +22,13 @@ namespace mediakit {
 
 MultiMuxerPrivate::~MultiMuxerPrivate() {}
 MultiMuxerPrivate::MultiMuxerPrivate(const string &vhost, const string &app, const string &stream, float dur_sec,
-                                     bool enable_rtsp, bool enable_rtmp, bool enable_hls, bool enable_mp4) {
+                                     bool enable_rtsp, bool enable_rtmp, bool enable_hls, bool enable_mp4, bool enable_raw)
+{	
+	if(enable_raw)
+	{//默认全部开启RawMediaSource,每路视频默认最多缓存一个GOP的数据,否则要关联修改很多地方
+		_raw = std::make_shared<RawMediaSourceMuxer>(vhost, app, stream);
+		//_enable_raw = enable_raw;
+	}
     _stream_url = vhost + " " + app + " " + stream;
     if (enable_rtmp) {
         _rtmp = std::make_shared<RtmpMediaSourceMuxer>(vhost, app, stream, std::make_shared<TitleMeta>(dur_sec));
@@ -47,6 +53,11 @@ MultiMuxerPrivate::MultiMuxerPrivate(const string &vhost, const string &app, con
 }
 
 void MultiMuxerPrivate::resetTracks() {
+	if (_raw)
+	{
+		_raw->resetTracks();
+	}
+
     if (_rtmp) {
         _rtmp->resetTracks();
     }
@@ -76,6 +87,12 @@ void MultiMuxerPrivate::resetTracks() {
 
 void MultiMuxerPrivate::setMediaListener(const std::weak_ptr<MediaSourceEvent> &listener) {
     _listener = listener;
+
+	if (_raw)
+	{
+		_raw->setListener(listener);
+	}
+
     if (_rtmp) {
         _rtmp->setListener(listener);
     }
@@ -104,7 +121,8 @@ int MultiMuxerPrivate::totalReaderCount() const {
 #if defined(ENABLE_MP4)
            (_fmp4 ? _fmp4->readerCount() : 0) +
 #endif
-           (hls ? hls->readerCount() : 0);
+           (hls ? hls->readerCount() : 0) +
+		   (_raw ? _raw->readerCount() : 0);
 }
 
 static std::shared_ptr<MediaSinkInterface> makeRecorder(MediaSource &sender, const vector<Track::Ptr> &tracks, Recorder::type type, const string &custom_path, size_t max_second){
@@ -160,6 +178,10 @@ bool MultiMuxerPrivate::isRecording(MediaSource &sender, Recorder::type type){
 }
 
 void MultiMuxerPrivate::setTimeStamp(uint32_t stamp) {
+	if (_raw) {
+		_raw->setTimeStamp(stamp);
+	}
+
     if (_rtmp) {
         _rtmp->setTimeStamp(stamp);
     }
@@ -173,6 +195,11 @@ void MultiMuxerPrivate::setTrackListener(Listener *listener) {
 }
 
 void MultiMuxerPrivate::onTrackReady(const Track::Ptr &track) {
+	if (_raw) 
+	{
+		_raw->addTrack(track);
+	}
+
     if (_rtmp) {
         _rtmp->addTrack(track);
     }
@@ -211,6 +238,10 @@ bool MultiMuxerPrivate::isEnabled(){
 }
 
 void MultiMuxerPrivate::onTrackFrame(const Frame::Ptr &frame) {
+	if (_raw) {
+		_raw->inputFrame(frame);
+	}
+
     if (_rtmp) {
         _rtmp->inputFrame(frame);
     }
@@ -269,6 +300,10 @@ static string getTrackInfoStr(const TrackSource *track_src){
 }
 
 void MultiMuxerPrivate::onAllTrackReady() {
+	if (_raw) {
+		_raw->onAllTrackReady();
+	}
+
     if (_rtmp) {
         _rtmp->onAllTrackReady();
     }
@@ -291,8 +326,8 @@ void MultiMuxerPrivate::onAllTrackReady() {
 MultiMediaSourceMuxer::~MultiMediaSourceMuxer() {}
 
 MultiMediaSourceMuxer::MultiMediaSourceMuxer(const string &vhost, const string &app, const string &stream, float dur_sec,
-                                             bool enable_rtsp, bool enable_rtmp, bool enable_hls, bool enable_mp4) {
-    _muxer.reset(new MultiMuxerPrivate(vhost, app, stream, dur_sec, enable_rtsp, enable_rtmp, enable_hls, enable_mp4));
+                                             bool enable_rtsp, bool enable_rtmp, bool enable_hls, bool enable_mp4, bool enable_raw) {
+    _muxer.reset(new MultiMuxerPrivate(vhost, app, stream, dur_sec, enable_rtsp, enable_rtmp, enable_hls, enable_mp4, enable_raw));
     _muxer->setTrackListener(this);
 }
 

@@ -10,7 +10,7 @@
 
 #ifndef ZLMEDIAKIT_MULTIMEDIASOURCEMUXER_H
 #define ZLMEDIAKIT_MULTIMEDIASOURCEMUXER_H
-
+#include "MSE/RawMediaSourceMuxer.h"
 #include "Common/Stamp.h"
 #include "Rtp/RtpSender.h"
 #include "Record/Recorder.h"
@@ -38,7 +38,7 @@ public:
 
 private:
     MultiMuxerPrivate(const string &vhost,const string &app, const string &stream,float dur_sec,
-                      bool enable_rtsp, bool enable_rtmp, bool enable_hls, bool enable_mp4);
+                      bool enable_rtsp, bool enable_rtmp, bool enable_hls, bool enable_mp4, bool enable_raw = true);
     void resetTracks() override;
     void setMediaListener(const std::weak_ptr<MediaSourceEvent> &listener);
     int totalReaderCount() const;
@@ -52,6 +52,7 @@ private:
     void onAllTrackReady() override;
 
 private:
+	RawMediaSourceMuxer::Ptr _raw;
     string _stream_url;
     Listener *_track_listener = nullptr;
     RtmpMediaSourceMuxer::Ptr _rtmp;
@@ -72,7 +73,7 @@ public:
 
     ~MultiMediaSourceMuxer() override;
     MultiMediaSourceMuxer(const string &vhost, const string &app, const string &stream, float dur_sec = 0.0,
-                          bool enable_rtsp = true, bool enable_rtmp = true, bool enable_hls = true, bool enable_mp4 = false);
+                          bool enable_rtsp = true, bool enable_rtmp = true, bool enable_hls = true, bool enable_mp4 = false,bool enable_raw = true);
 
     /**
      * 设置事件监听器

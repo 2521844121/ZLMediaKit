@@ -50,6 +50,7 @@ bool loadIniConfig(const char *ini_path = nullptr);
 #define TS_SCHEMA "ts"
 #define FMP4_SCHEMA "fmp4"
 #define DEFAULT_VHOST "__defaultVhost__"
+#define RAW_SCHEMA "raw"	//RTSP,RTMP推拉流产生的裸数据源
 
 ////////////广播名称///////////
 namespace Broadcast {

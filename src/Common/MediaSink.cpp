@@ -110,7 +110,7 @@ void MediaSink::checkTrackIfReady(const Track::Ptr &track){
             return;
         }
 
-        if(_track_map.size() == 1 && _ticker.elapsedTime() > kMaxAddTrackMS){
+        if(_track_map.size() == 1/* && _ticker.elapsedTime() > MAX_WAIT_MS_ADD_TRACK*/){
             //如果只有一个Track，那么在该Track添加后，我们最多还等待若干时间(可能后面还会添加Track)
             emitAllTrackReady();
             return;
