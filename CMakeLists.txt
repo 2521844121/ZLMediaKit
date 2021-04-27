@@ -55,6 +55,7 @@ option(ENABLE_TESTS "Enable Tests" true)
 option(ENABLE_SERVER "Enable Server" true)
 option(ENABLE_MEM_DEBUG "Enable Memory Debug" false)
 option(ENABLE_ASAN "Enable Address Sanitize" false)
+option(ENABLE_MSE "Enable MSE" true)
 
 if (ENABLE_MEM_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-wrap,free  -Wl,-wrap,malloc -Wl,-wrap,realloc -Wl,-wrap,calloc")
@@ -139,8 +140,8 @@ if(ENABLE_HLS)
 	endif(WIN32)
 endif()
 
-#添加mov、flv库用于MP4录制
-if(ENABLE_MP4)
+#添加mov、flv库用于MP4录制 或者MSE服务支持
+if(ENABLE_MP4 OR ENABLE_MSE)
     message(STATUS "ENABLE_MP4 defined")
     add_definitions(-DENABLE_MP4)
 
@@ -162,6 +163,13 @@ if(ENABLE_MP4)
 		set_target_properties(mov flv PROPERTIES COMPILE_FLAGS  ${VS_FALGS} )
 	endif(WIN32)
 endif()
+
+#添加rtp库用于rtp转ps/ts
+if(ENABLE_MSE)
+    message(STATUS " AND ENABLE_HLS defined")
+	add_definitions(-DENABLE_MSE)
+endif()
+
 
 #添加rtp库用于rtp转ps/ts
 if(ENABLE_RTPPROXY AND ENABLE_HLS)

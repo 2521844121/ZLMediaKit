@@ -310,7 +310,9 @@ int start_main(int argc,char *argv[]) {
         RtpServer::Ptr rtpServer = std::make_shared<RtpServer>();
 #endif//defined(ENABLE_RTPPROXY)
 
+#if defined(ENABLE_MSE)		
 		TcpServer::Ptr mseSrv(new TcpServer());
+#endif//defined(ENABLE_RTPPROXY)
 
         try {
             //rtsp服务器，端口默认554
@@ -336,7 +338,9 @@ int start_main(int argc,char *argv[]) {
             if(rtpPort){ rtpServer->start(rtpPort); }
 #endif//defined(ENABLE_RTPPROXY)
 
+#if defined(ENABLE_MSE)		
 			mseSrv->start<WebSocketSessionAdatper<MseSessionCreator, HttpSession> >(msePort); //MSE服务
+#endif//defined(ENABLE_RTPPROXY)
 
         }catch (std::exception &ex){
             WarnL << "端口占用或无权限:" << ex.what() << endl;
