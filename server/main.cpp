@@ -48,7 +48,7 @@ const string kPort = HTTP_FIELD"port";
 const string kSSLPort = HTTP_FIELD"sslport";
 onceToken token1([](){
     mINI::Instance()[kPort] = 80;
-    mINI::Instance()[kSSLPort] = 443;
+    mINI::Instance()[kSSLPort] = 1443;
 },nullptr);
 }//namespace Http
 
@@ -93,11 +93,22 @@ onceToken token1([](){
 },nullptr);
 } //namespace RtpProxy
 
-namespace MSE {
+////////////MSE配置///////////
+namespace MSE
+{
 #define MSE_FIELD "mse."
 	const string kPort = MSE_FIELD"port";
 	onceToken token1([]() {
-		mINI::Instance()[kPort] = 1980;
+		mINI::Instance()[kPort] = 5096;
+	}, nullptr);
+} //namespace MSE
+
+namespace LOG
+{
+#define LOG_FIELD "log."
+	const string kLevel = LOG_FIELD"level";
+	onceToken token1([]() {
+		mINI::Instance()[kLevel] = LWarn;
 	}, nullptr);
 } //namespace MSE
 
@@ -232,16 +243,16 @@ int start_main(int argc,char *argv[]) {
         }
 
         bool bDaemon = cmd_main.hasKey("daemon");
-        LogLevel logLevel = (LogLevel) cmd_main["level"].as<int>();
+        int logLevel = (LogLevel) cmd_main["level"].as<int>();
         logLevel = MIN(MAX(logLevel, LTrace), LError);
         g_ini_file = cmd_main["config"];
         string ssl_file = cmd_main["ssl"];
         int threads = cmd_main["threads"];
 
         //设置日志
-        Logger::Instance().add(std::make_shared<ConsoleChannel>("ConsoleChannel", logLevel));
+        Logger::Instance().add(std::make_shared<ConsoleChannel>("ConsoleChannel", (LogLevel)logLevel));
 #ifndef ANDROID
-        auto fileChannel = std::make_shared<FileChannel>("FileChannel", exeDir() + "log/", logLevel);
+        auto fileChannel = std::make_shared<FileChannel>("FileChannel", exeDir() + "log/", (LogLevel)logLevel);
         //日志最多保存天数
         fileChannel->setMaxDay(cmd_main["max_day"]);
         Logger::Instance().add(fileChannel);
@@ -262,6 +273,9 @@ int start_main(int argc,char *argv[]) {
         //加载配置文件，如果配置文件不存在就创建一个
         loadIniConfig(g_ini_file.data());
 
+		logLevel = mINI::Instance()[LOG::kLevel];
+		Logger::Instance().setLevel((LogLevel)logLevel);
+
         if(!File::is_dir(ssl_file.data())){
             //不是文件夹，加载证书，证书包含公钥和私钥
             SSL_Initor::Instance().loadCertificate(ssl_file.data());
@@ -275,7 +289,7 @@ int start_main(int argc,char *argv[]) {
                 return true;
             });
         }
-
+		
         uint16_t shellPort = mINI::Instance()[Shell::kPort];
         uint16_t rtspPort = mINI::Instance()[Rtsp::kPort];
         uint16_t rtspsPort = mINI::Instance()[Rtsp::kSSLPort];
@@ -373,6 +387,12 @@ int start_main(int argc,char *argv[]) {
             signal(SIGINT, SIG_IGN);// 设置退出信号
             sem.post();
         });// 设置退出信号
+
+		NoticeCenter::Instance().addListener(ReloadConfigTag, Broadcast::kBroadcastReloadConfig, [&](BroadcastReloadConfigArgs) 
+		{
+			logLevel = mINI::Instance()[LOG::kLevel];
+			Logger::Instance().setLevel((LogLevel)logLevel);
+		});
 
 #if !defined(_WIN32)
         signal(SIGHUP, [](int) { mediakit::loadIniConfig(g_ini_file.data()); });
