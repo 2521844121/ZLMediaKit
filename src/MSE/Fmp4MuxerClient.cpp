@@ -3,34 +3,17 @@
 //#define WRITE_FILE
 namespace mediakit
 {
-	Fmp4MuxerClient::Fmp4MuxerClient(int frameRate)
+	Fmp4MuxerClient::Fmp4MuxerClient(int width, int height)
+		:m_width(width), m_height(height)
 	{
-		m_HeaderLen = 0;
-		m_FrameLen = 0;
-		m_FirstKeyFrame = false;
-		m_Fmp4Header = NULL;
-		m_Fmp4Frame = NULL;
-		m_File = NULL;
-		m_SendFmp4Header = false;
-		m_WriteHeader = false;
-		m_pts = 0;
-		m_Interval = 0;
-		m_AudioPts = 0;
-		m_AudioInterval = 128;
-		freshFrameRate(frameRate);
+		m_Fmp4.reset(new Fmp4Muxer(m_width, m_height, FRAGMENT_PER_FRAME, 10));
+
 #ifdef WRITE_FILE
 		char buf[20];
 		static int i = 1;
 		sprintf(buf, "D:\\fmp4-%d.mp4", i++);
 		m_File = fopen(buf, "wb");
 #endif
-	}
-
-	void Fmp4MuxerClient::freshFrameRate(int frameRate)
-	{
-		frameRate = (frameRate == 0 ? 25 : frameRate);
-		m_Interval = 1000 / frameRate;
-		m_Fmp4.reset(new Fmp4Muxer(1920, 1080, FRAGMENT_PER_FRAME, 10, m_Interval));
 	}
 
 	Fmp4MuxerClient::~Fmp4MuxerClient()
@@ -41,7 +24,7 @@ namespace mediakit
 #endif
 	}
 
-	MSEErrCode Fmp4MuxerClient::muxer(unsigned char* nalu, int len, bool keyFrame, unsigned int pts, CodecId type)
+	MSEErrCode Fmp4MuxerClient::muxer(unsigned char* nalu, int len, bool keyFrame, unsigned int pts, unsigned int dts, CodecId type)
 	{
 		MSEErrCode mutexRs = MSEErrCode_Success;
 		if (!m_FirstKeyFrame)
@@ -56,15 +39,11 @@ namespace mediakit
 
 		if (type == CodecH264)
 		{
-			mutexRs = m_Fmp4->mux(CodecH264, nalu, len, m_pts);
-			if (MSEErrCode_Success == mutexRs)
-				m_pts += m_Interval;
+			mutexRs = m_Fmp4->mux(CodecH264, nalu, len, pts, dts);
 		}
 		else if (type == CodecH265)
 		{
-			mutexRs = m_Fmp4->mux(CodecH265, nalu, len, m_pts);
-			if (MSEErrCode_Success == mutexRs)
-				m_pts += m_Interval;
+			mutexRs = m_Fmp4->mux(CodecH265, nalu, len, pts, dts);
 		}
 		else if (type == CodecAAC)
 		{

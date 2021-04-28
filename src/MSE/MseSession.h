@@ -67,14 +67,19 @@ namespace mediakit
 		//直播源读取器
 		RawMediaSource::RingType::RingReader::Ptr _play_reader;
 
-		Fmp4MuxerClient _muxerClient;
+		std::shared_ptr<Fmp4MuxerClient> _muxerClient;
 
 		unsigned int m_pts = 0;
+
+		unsigned int m_ptsInterval = 0;
 
 		//H264
 		string _sps;
 
 		string _pps;
+
+		//视频帧率
+		int _frameRate = 0;
 
 		//ResourcePoolHelper<H264Frame> _h264FramePool;
 

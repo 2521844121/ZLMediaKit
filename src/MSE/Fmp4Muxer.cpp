@@ -4,8 +4,9 @@
 #include "fmp4-writer.h"
 #include "mpeg4-aac.h"
 #include "mpeg4-hevc.h"
+#include "Extension/H264.h"
+#include "Extension/H265.h"
 #include <memory>
-
 #include "Fmp4Muxer.h"
 
 namespace mediakit
@@ -52,10 +53,10 @@ namespace mediakit
 	}
 
 
-	Fmp4Muxer::Fmp4Muxer(int width, int height, FragmentType type, int groupNum, int ptsItv)
-		:m_width(width), m_height(height), m_ptsItv(ptsItv)
+	Fmp4Muxer::Fmp4Muxer(int width, int height, FragmentType type, int groupNum)
+		:m_width(width), m_height(height)
 	{
-		m_writer = fmp4_writer_create(mov_file_buffer(), this, 0/*, type, groupNum*/);
+		m_writer = fmp4_writer_create(mov_file_buffer(), this, 0);
 		isGotI = false;
 		gotFtyp = false;
 		m_curIndex = 0;
@@ -177,137 +178,6 @@ namespace mediakit
 		int ret = 0;
 		if (frameType == CodecH264)
 		{
-#if 0
-			int type = nalu[4] & 0x1f;
-
-			if (!isGotI && type != 7)
-				return  -1;
-
-			if (type == 7)
-			{
-				int i;
-				int iFrameLen;
-				unsigned char *iFrame = NULL;
-				uint8_t *tmpBuffer = (uint8_t *)malloc(len + 20);
-
-				if (!isGotI)
-				{
-					isGotI = true;
-
-					int spsLen, ppsLen;
-					unsigned char *sps = nalu + 4;
-					for (i = 0; i < len; i++)
-					{
-						if (sps[i] == 0x00 && sps[i + 1] == 0x00 && sps[i + 2] == 0x00 && sps[i + 3] == 0x01)
-						{
-							spsLen = i;
-							break;
-						}
-					}
-
-					if (i == len)
-					{
-						ErrLog(<< "[Fmp4Muxer::mux] ONLY SPS!");
-						free(tmpBuffer);
-						return -1;
-					}
-
-					unsigned char *pps = sps + spsLen + 4;
-					for (i = 0; i < len; i++)
-					{
-						if (pps[i] == 0x00 && pps[i + 1] == 0x00 && pps[i + 2] == 0x00 && pps[i + 3] == 0x01)
-						{
-							ppsLen = i;
-							break;
-						}
-					}
-
-					if (i == len)
-					{
-						ErrLog(<< "[Fmp4Muxer::mux] ONLY PPS!");
-						free(tmpBuffer);
-						return -1;
-					}
-
-					if (-1 == m_avc_track)
-					{
-						uint8_t *p = tmpBuffer;
-						*p++ = 0x01;
-						*p++ = sps[1];
-						*p++ = sps[2];
-						*p++ = sps[3];
-						*p++ = 0xFF; // lengthSizeMinusOne: 3, nalu length is 4 bytes
-						*p++ = 0xE1;
-						*p++ = (spsLen >> 8) & 0xFF;
-						*p++ = spsLen & 0xFF;
-						memcpy(p, sps, spsLen);
-						p += spsLen;
-
-						*p++ = 0x01;
-						*p++ = (ppsLen >> 8) & 0xFF;
-						*p++ = ppsLen & 0xFF;
-						memcpy(p, pps, ppsLen);
-
-						int bufSize = spsLen + ppsLen + 11;
-
-						m_avc_track = fmp4_writer_add_video(m_writer, MOV_OBJECT_H264, m_width, m_height, m_ptsItv, tmpBuffer, bufSize);
-					}
-				}
-
-				for (i = 0; i < len; i++)
-				{
-					if (nalu[i] == 0x00 && nalu[i + 1] == 0x00 && nalu[i + 2] == 0x00 && nalu[i + 3] == 0x01 && (nalu[i + 4] & 0x1f) == 5)
-					{
-						iFrame = nalu + i + 4;
-						iFrameLen = len - i - 4;
-						break;
-					}
-				}
-
-				if (i < len)
-				{
-					uint8_t *p = tmpBuffer;
-					*p++ = (iFrameLen >> 24) & 0xFF;
-					*p++ = (iFrameLen >> 16) & 0xFF;
-					*p++ = (iFrameLen >> 8) & 0xFF;
-					*p++ = iFrameLen & 0xFF;
-
-					memcpy(p, iFrame, iFrameLen);
-					ret = fmp4_writer_write(m_writer, m_avc_track, tmpBuffer, iFrameLen + 4, pts, pts, 1);
-				}
-				else
-				{
-					ErrLog(<< "[Fmp4Muxer::mux] NO IDR!");
-					free(tmpBuffer);
-					return -1;
-				}
-
-				free(tmpBuffer);
-			}
-			else if (type == 1)
-			{
-				if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x00 && nalu[3] == 0x01)
-				{
-					int pFrameLen = len - 4;
-					nalu[0] = (pFrameLen >> 24) & 0xFF;
-					nalu[1] = (pFrameLen >> 16) & 0xFF;
-					nalu[2] = (pFrameLen >> 8) & 0xFF;
-					nalu[3] = pFrameLen & 0xFF;
-
-					ret = fmp4_writer_write(m_writer, m_avc_track, nalu, len, pts, pts, 0);
-
-					nalu[0] = 0x00;
-					nalu[1] = 0x00;
-					nalu[2] = 0x00;
-					nalu[3] = 0x01;
-				}
-			}
-			else
-			{
-				ErrLog(<< "[Fmp4Muxer::mux] data type unsupport!" << type);
-				return -1;
-			}
-#else
 			int startCodeLen = getStartCodeLen(nalu, len);
 			if (startCodeLen == 0)
 			{
@@ -317,15 +187,15 @@ namespace mediakit
 
 			int type = nalu[startCodeLen] & 0x1f;
 
-			if (!isGotI && type != 7)
+			if (!isGotI && type != H264Frame::NAL_SPS)
 			{
 				ErrorL << "Fmp4Muxer::mux invalidate waitting i frame!!";
 				return  MSEErrCode_NoKeyFrame;
 			}
 				
 
-			if (type == 7)
-			{
+			if (type == H264Frame::NAL_SPS)
+			{//SPS+PPS+IDR
 				int i;
 				int iFrameLen;
 				unsigned char *iFrame = NULL;
@@ -395,23 +265,27 @@ namespace mediakit
 
 						int bufSize = spsLen + ppsLen + 11;
 
-						m_avc_track = fmp4_writer_add_video(m_writer, MOV_OBJECT_H264, m_width, m_height, /*m_ptsItv,*/ tmpBuffer, bufSize);
+						m_avc_track = fmp4_writer_add_video(m_writer, MOV_OBJECT_H264, m_width, m_height, tmpBuffer, bufSize);
 					}
 				}
 
 				for (i = 0; i < len; i++)
 				{
-					if (nalu[i] == 0x00 && nalu[i + 1] == 0x00 && nalu[i + 2] == 0x00 && nalu[i + 3] == 0x01 && (nalu[i + 4] & 0x1f) == 5)
+					if (nalu[i] == 0x00 && nalu[i + 1] == 0x00 && nalu[i + 2] == 0x00 && nalu[i + 3] == 0x01 && (nalu[i + 4] & 0x1f) == H264Frame::NAL_IDR)
 					{
 						iFrame = nalu + i + 4;
 						iFrameLen = len - i - 4;
 						break;
 					}
-					else if (nalu[i] == 0x00 && nalu[i + 1] == 0x00 && nalu[i + 2] == 0x01 && (nalu[i + 3] & 0x1f) == 5)
+					else if (nalu[i] == 0x00 && nalu[i + 1] == 0x00 && nalu[i + 2] == 0x01 && (nalu[i + 3] & 0x1f) == H264Frame::NAL_IDR)
 					{
 						iFrame = nalu + i + 3;
 						iFrameLen = len - i - 3;
 						break;
+					}
+					else
+					{//PPS和IDR之间有其他NAL单元?
+						ErrorL << "[Fmp4Muxer::mux] unknow nul type befor IDR!";
 					}
 				}
 
@@ -424,7 +298,7 @@ namespace mediakit
 					*p++ = iFrameLen & 0xFF;
 
 					memcpy(p, iFrame, iFrameLen);
-					ret = fmp4_writer_write(m_writer, m_avc_track, tmpBuffer, iFrameLen + 4, pts, pts, MOV_AV_FLAG_KEYFREAME);
+					ret = fmp4_writer_write(m_writer, m_avc_track, tmpBuffer, iFrameLen + 4, pts, dts, MOV_AV_FLAG_KEYFREAME);
 				}
 				else
 				{
@@ -435,12 +309,13 @@ namespace mediakit
 
 				free(tmpBuffer);
 			}
-			else if (type == 1 || type == 5)
+			else if (type == H264Frame::NAL_B_P || type == H264Frame::NAL_IDR)
 			{
-			if (type == 5)
-			{
-				cout << "Fmp4Muxer::mux type is " << endl;
+				if (type == H264Frame::NAL_IDR)
+				{
+					ErrorL << "[Fmp4Muxer::mux] idr without sps and pps!";
 				}
+
 				if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x00 && nalu[3] == 0x01)
 				{
 					int pFrameLen = len - 4;
@@ -449,10 +324,7 @@ namespace mediakit
 					nalu[2] = (pFrameLen >> 8) & 0xFF;
 					nalu[3] = pFrameLen & 0xFF;
 
-					if (type == 1)
-						ret = fmp4_writer_write(m_writer, m_avc_track, nalu, len, pts, pts, MOV_AV_FLAG_KEYFREAME);
-					else if (type == 5)
-						ret = fmp4_writer_write(m_writer, m_avc_track, nalu, len, pts, pts, MOV_AV_FLAG_KEYFREAME);
+					ret = fmp4_writer_write(m_writer, m_avc_track, nalu, len, pts, dts, MOV_AV_FLAG_KEYFREAME);
 
 					nalu[0] = 0x00;
 					nalu[1] = 0x00;
@@ -460,23 +332,15 @@ namespace mediakit
 					nalu[3] = 0x01;
 				}
 				else if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x01)
-				{// 00 00 01的方式未处理
+				{// 00 00 01
 					uint8_t *tmpBuffer = (uint8_t *)malloc(len + 20);
-
 					int pFrameLen = len - 3;
 					tmpBuffer[0] = (pFrameLen >> 24) & 0xFF;
 					tmpBuffer[1] = (pFrameLen >> 16) & 0xFF;
 					tmpBuffer[2] = (pFrameLen >> 8) & 0xFF;
 					tmpBuffer[3] = pFrameLen & 0xFF;
-
 					memcpy(tmpBuffer + 4, nalu + 3, len - 3);
-
-					if (type == 1)
-						ret = fmp4_writer_write(m_writer, m_avc_track, tmpBuffer, len + 1/*去除的nal 00 00 01，但是新增了 4字节fmp4头*/, pts, pts, MOV_AV_FLAG_KEYFREAME);
-					else if (type == 5)
-						ret = fmp4_writer_write(m_writer, m_avc_track, tmpBuffer, len + 1/*去除的nal 00 00 01，但是新增了 4字节fmp4头*/, pts, pts, MOV_AV_FLAG_KEYFREAME);
-
-
+					ret = fmp4_writer_write(m_writer, m_avc_track, tmpBuffer, len + 1/*去除的nal 00 00 01，但是新增了 4字节fmp4头*/, pts, dts, MOV_AV_FLAG_KEYFREAME);
 					free(tmpBuffer);
 				}
 			}
@@ -486,7 +350,6 @@ namespace mediakit
 				return  MSEErrCode_UnknowNalType;;
 			}
 			return MSEErrCode_Success;
-#endif
 		}
 		else if (frameType == CodecH265)
 		{
@@ -497,10 +360,10 @@ namespace mediakit
 			}
 			uint8_t nalutype = (nalu[4] >> 1) & 0x3f;
 
-			if (!isGotI && nalutype != 32)
+			if (!isGotI && nalutype != H265Frame::NAL_VPS)
 				return  MSEErrCode_NoKeyFrame;
 
-			if (nalutype == 32)
+			if (nalutype == H265Frame::NAL_VPS)
 			{
 				int idx = 0;
 				int iFrameLen;
@@ -512,7 +375,7 @@ namespace mediakit
 					if (nalu[idx] == 0x00 && nalu[idx + 1] == 0x00 && nalu[idx + 2] == 0x00 && nalu[idx + 3] == 0x01)
 					{
 						uint8_t type = (nalu[idx + 4] >> 1) & 0x3f;
-						if (type == 32 || type == 33 || type == 34)
+						if (type == H265Frame::NAL_VPS || type == H265Frame::NAL_SPS || type == H265Frame::NAL_PPS)
 						{
 							continue;
 						}
@@ -535,7 +398,7 @@ namespace mediakit
 						struct mpeg4_hevc_t hevc;
 						//h265_annexbtomp4(&hevc, tmpBuffer, idx, out, 1024, &vcl);
 						int hdcrSize = mpeg4_hevc_decoder_configuration_record_save(&hevc, data, sizeof(data));
-						m_hevc_track = fmp4_writer_add_video(m_writer, MOV_OBJECT_HEVC, m_width, m_height, /*m_ptsItv, */data, hdcrSize);
+						m_hevc_track = fmp4_writer_add_video(m_writer, MOV_OBJECT_HEVC, m_width, m_height, data, hdcrSize);
 					}
 				}
 
@@ -544,7 +407,7 @@ namespace mediakit
 					if (nalu[idx] == 0x00 && nalu[idx + 1] == 0x00 && nalu[idx + 2] == 0x00 && nalu[idx + 3] == 0x01)
 					{
 						uint8_t type = (nalu[idx + 4] >> 1) & 0x3f;
-						if (type == 19)
+						if (type == H265Frame::NAL_IDR_W_RADL)
 						{
 							iFrame = nalu + idx + 4;
 							iFrameLen = len - idx - 4;
@@ -562,7 +425,7 @@ namespace mediakit
 					*p++ = iFrameLen & 0xFF;
 
 					memcpy(p, iFrame, iFrameLen);
-					ret = fmp4_writer_write(m_writer, m_hevc_track, tmpBuffer, iFrameLen + 4, pts, pts, MOV_AV_FLAG_KEYFREAME);
+					ret = fmp4_writer_write(m_writer, m_hevc_track, tmpBuffer, iFrameLen + 4, pts, dts, MOV_AV_FLAG_KEYFREAME);
 				}
 				else
 				{
@@ -573,7 +436,7 @@ namespace mediakit
 
 				free(tmpBuffer);
 			}
-			else if (nalutype == 1)
+			else if (nalutype == H265Frame::NAL_TRAIL_R)
 			{
 				if (nalu[0] == 0x00 && nalu[1] == 0x00 && nalu[2] == 0x00 && nalu[3] == 0x01)
 				{
@@ -583,7 +446,7 @@ namespace mediakit
 					nalu[2] = (pFrameLen >> 8) & 0xFF;
 					nalu[3] = pFrameLen & 0xFF;
 
-					ret = fmp4_writer_write(m_writer, m_hevc_track, nalu, len, pts, pts, MOV_AV_FLAG_KEYFREAME);
+					ret = fmp4_writer_write(m_writer, m_hevc_track, nalu, len, pts, dts, MOV_AV_FLAG_KEYFREAME);
 
 					nalu[0] = 0x00;
 					nalu[1] = 0x00;
@@ -611,15 +474,14 @@ namespace mediakit
 				ErrorL << "[Fmp4Muxer::mux] len != framelen!";
 			}
 
-			/*char audBuf[2048] = { 0 };
-			int pFrameLen = len - 7;
-			audBuf[0] = (pFrameLen >> 24) & 0xFF;
-			audBuf[1] = (pFrameLen >> 16) & 0xFF;
-			audBuf[2] = (pFrameLen >> 8) & 0xFF;
-			audBuf[3] = pFrameLen & 0xFF;
-			memcpy(audBuf + 4, nalu + 7, pFrameLen);*/
-
-			ret = fmp4_writer_write(m_writer, m_aac_track, nalu + 7, len - 7, pts, pts, MOV_AV_FLAG_KEYFREAME);
+			//char audBuf[2048] = { 0 };
+			//int pFrameLen = len - 7;
+			//audBuf[0] = (pFrameLen >> 24) & 0xFF;
+			//audBuf[1] = (pFrameLen >> 16) & 0xFF;
+			//audBuf[2] = (pFrameLen >> 8) & 0xFF;
+			//audBuf[3] = pFrameLen & 0xFF;
+			//memcpy(audBuf + 4, nalu + 7, pFrameLen);
+			ret = fmp4_writer_write(m_writer, m_aac_track, nalu + 7, len - 7, pts, dts, MOV_AV_FLAG_KEYFREAME);
 		}
 
 		if (ret < 0)

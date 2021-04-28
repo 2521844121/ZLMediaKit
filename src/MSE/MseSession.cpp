@@ -10,6 +10,7 @@
 
 #include "MseSession.h"
 #include "Extension/H264.h"
+#include "Extension/SPSParser.h"
 namespace mediakit
 {
 	void MSESession::attachServer(const TcpServer &server) 
@@ -196,6 +197,38 @@ namespace mediakit
 			return;
 		}
 
+		if (!_muxerClient)
+		{
+#if 1		//通过函数getAVCInfo计算出来的帧率有时不正确,需要外部配置
+			int width = 1920;
+			int height = 1080;
+			float frameRate = 25;
+			string spsSkipHeader(_sps.c_str()+4);//skil 00 00 00 01
+			getAVCInfo(spsSkipHeader, width, height, frameRate);
+#endif
+
+			string kStreamId = _media_info._app + "_" + _media_info._streamid+".frameRate";
+			if (mINI::Instance().count(kStreamId) > 0)
+			{//配置了流信息
+				frameRate = mINI::Instance()[kStreamId];
+				if (frameRate > 0)
+				{
+					m_ptsInterval = 1000 / frameRate;
+				}				
+				WarnL << "MSESession::processH264Frame use frameRatte " << frameRate << " " << m_ptsInterval;
+			}
+			
+
+			WarnL << "MSESession::processH264Frame " << " FrameRate:" << frameRate;
+			_muxerClient = std::make_shared<Fmp4MuxerClient>(width, height);
+		}
+
+		if (!_muxerClient)
+		{
+			ErrorL << "MSESession::processH264Frame create mutexerClient Error";
+			return;
+		}
+
 		BufferRaw::Ptr frameToMutex;
 		//把 SPS,PPS,IDR拼接起来
 		if (type == H264Frame::NAL_IDR)
@@ -219,17 +252,28 @@ namespace mediakit
 
 		if (type == H264Frame::NAL_IDR || type == H264Frame::NAL_B_P)
 		{
+			TraceL << " FramePts:" << frame->pts() << " FrameDts" << frame->dts();
 			MSEErrCode muxerRs = MSEErrCode_Success;
 			if (type == H264Frame::NAL_IDR)
 			{
-				if ((muxerRs = _muxerClient.muxer((unsigned char*)frameToMutex->data(), frameToMutex->size(), true, m_pts += 40, CodecH264)) < 0)
+				if ((muxerRs = _muxerClient->muxer((unsigned char*)frameToMutex->data(),
+					frameToMutex->size(), 
+					true,
+					m_ptsInterval > 0 ? (m_pts += 40) : frame->pts(),
+					m_ptsInterval > 0 ? (m_pts += 40) : frame->dts(),
+					CodecH264)) < 0)
 				{
 					InfoL << "processAVFrame muxer NAL_IDR error=" << muxerRs; 					
 				}
 			}
 			else
 			{
-				if ((muxerRs = _muxerClient.muxer((unsigned char*)frameToMutex->data(), frameToMutex->size(), false, m_pts += 40, CodecH264)) < 0)
+				if ((muxerRs = _muxerClient->muxer((unsigned char*)frameToMutex->data(),
+					frameToMutex->size(),
+					false,
+					m_ptsInterval > 0 ? (m_pts += 40) : frame->pts(),
+					m_ptsInterval > 0 ? (m_pts += 40) : frame->dts(),
+					CodecH264)) < 0)
 				{
 					InfoL << "processAVFrame muxer NAL_PORB error=" << muxerRs;
 				}
@@ -245,38 +289,38 @@ namespace mediakit
 			}
 
 
-			if (!_muxerClient.m_SendFmp4Header)
+			if (!_muxerClient->m_SendFmp4Header)
 			{
-				if (_muxerClient.m_HeaderLen > 0)
+				if (_muxerClient->m_HeaderLen > 0)
 				{
-					_muxerClient.m_SendFmp4Header = true;
+					_muxerClient->m_SendFmp4Header = true;
 					auto msg = _hRawFramePool.obtain();
-					msg->setCapacity(_muxerClient.m_HeaderLen);
-					msg->setSize(_muxerClient.m_HeaderLen);
-					memcpy(msg->data(), _muxerClient.m_Fmp4Header, _muxerClient.m_HeaderLen);
+					msg->setCapacity(_muxerClient->m_HeaderLen);
+					msg->setSize(_muxerClient->m_HeaderLen);
+					memcpy(msg->data(), _muxerClient->m_Fmp4Header, _muxerClient->m_HeaderLen);
 					int sendRs = send(msg, WebSocketHeader::BINARY);
 				}
 				else
 				{
-					ErrorL << "processAVFrame send Fmp4Header error! headerLen " << _muxerClient.m_HeaderLen;
+					ErrorL << "processAVFrame send Fmp4Header error! headerLen " << _muxerClient->m_HeaderLen;
 					return;
 				}
 			}
 
 
-			if (_muxerClient.m_SendFmp4Header)
+			if (_muxerClient->m_SendFmp4Header)
 			{
-				if (_muxerClient.m_FrameLen > 0)
+				if (_muxerClient->m_FrameLen > 0)
 				{
 					auto msg = _hRawFramePool.obtain();
-					msg->setCapacity(_muxerClient.m_FrameLen);
-					msg->setSize(_muxerClient.m_FrameLen);
-					memcpy(msg->data(), _muxerClient.m_Fmp4Frame, _muxerClient.m_FrameLen);
+					msg->setCapacity(_muxerClient->m_FrameLen);
+					msg->setSize(_muxerClient->m_FrameLen);
+					memcpy(msg->data(), _muxerClient->m_Fmp4Frame, _muxerClient->m_FrameLen);
 					int sendRs = send(msg, WebSocketHeader::BINARY);
 				}
 				else
 				{
-					ErrorL << "processAVFrame send Fmp4Frame error! m_HeaderLen " << _muxerClient.m_HeaderLen;
+					ErrorL << "processAVFrame send Fmp4Frame error! m_HeaderLen " << _muxerClient->m_HeaderLen;
 					return;
 				}
 			}

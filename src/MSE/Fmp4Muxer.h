@@ -41,7 +41,7 @@ namespace mediakit
 	class Fmp4Muxer
 	{
 	public:
-		Fmp4Muxer(int width, int height, FragmentType type, int groupNum, int ptsItv);
+		Fmp4Muxer(int width, int height, FragmentType type, int groupNum);
 		virtual ~Fmp4Muxer();
 
 		//0 ³É¹¦  -1Ê§°Ü
@@ -78,8 +78,6 @@ namespace mediakit
 
 		int m_width;
 		int m_height;
-
-		int m_ptsItv;
 
 		bool isGotI;
 		bool gotFtyp;
