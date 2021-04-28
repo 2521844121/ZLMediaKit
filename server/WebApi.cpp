@@ -302,6 +302,27 @@ Value makeMediaSourceJson(MediaSource &media){
     return item;
 }
 
+vector<string> tokenize(const string &self, const string &chars)
+{
+	vector<string> tokens(1);
+	string map(256, '\0');
+	for (const unsigned char &ch : chars) {
+		map[ch] = '\1';
+	}
+	for (const unsigned char &ch : self) {
+		if (!map.at(ch)) {
+			tokens.back().push_back(char(ch));
+		}
+		else if (tokens.back().size()) {
+			tokens.push_back(string());
+		}
+	}
+	while (tokens.size() && tokens.back().empty()) {
+		tokens.pop_back();
+	}
+	return tokens;
+};
+
 /**
  * 安装api接口
  * 所有api都支持GET和POST两种方式
@@ -383,6 +404,38 @@ void installWebApi() {
         }
         val["changed"] = changed;
     });
+
+	//设置服务器配置
+	//测试url(比如关闭http api调试) http://127.0.0.1/index/api/setServerConfig2?api.apiDebug=0
+	//你也可以通过http post方式传参，可以通过application/x-www-form-urlencoded或application/json方式传参
+	//和http://127.0.0.1/index/api/setServerConfig的区别是该接口如果判断设备不存在,则向配置文件中新增一个配置项
+	api_regist("/index/api/setServerConfig2", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+		auto &ini = mINI::Instance();
+		int changed = API::Success;
+		for (auto &pr : allArgs) {
+			if (ini.find(pr.first) != ini.end()) {
+				if (ini[pr.first] == pr.second) {
+					continue;
+				}
+			}
+
+			vector<string> kv = tokenize(pr.first, ".");
+			if (kv.size() != 2) 
+			{//配置文件中的key必须满足group.key格式
+				continue;
+			}
+
+			ini[pr.first] = pr.second;
+			//替换成功
+			++changed;
+		}
+		if (changed > 0) {
+			NoticeCenter::Instance().emitEvent(Broadcast::kBroadcastReloadConfig);
+			ini.dumpFile(g_ini_file);
+		}
+		val["changed"] = changed;
+	});
 
 
     static auto s_get_api_list = [](API_ARGS_MAP){
