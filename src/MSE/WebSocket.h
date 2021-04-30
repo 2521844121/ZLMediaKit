@@ -157,7 +157,7 @@ protected:
 	bool onWebSocketConnect(const Parser &header) override {
 		//创建websocket session类
 		//_session = _creator(header, *this, HttpSessionType::_sock);
-		_session = _creator(header, *this, getSock());
+		_session = _creator(header, *this, HttpSessionType::getSock());
 		if (!_session) {
 			//此url不允许创建websocket连接
 			return false;
