@@ -193,7 +193,7 @@ namespace mediakit
 
 		if (_sps.empty() || _pps.empty())
 		{
-			ErrorL << "processH264Frame waitting i frame!!";
+			WarnL << "processH264Frame waitting i frame!!";
 			return;
 		}
 

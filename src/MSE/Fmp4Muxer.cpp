@@ -285,7 +285,7 @@ namespace mediakit
 					}
 					else
 					{//PPS和IDR之间有其他NAL单元?
-						ErrorL << "[Fmp4Muxer::mux] unknow nul type befor IDR!";
+						WarnL << "[Fmp4Muxer::mux] unknow nal type befor IDR!";
 					}
 				}
 
