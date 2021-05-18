@@ -1,6 +1,7 @@
 #include "Fmp4MuxerClient.h"
-
+#include "Extension/AAC.h"
 //#define WRITE_FILE
+
 namespace mediakit
 {
 	Fmp4MuxerClient::Fmp4MuxerClient(int width, int height)
@@ -65,7 +66,7 @@ namespace mediakit
 
 			if (m_HeaderLen <= 0)
 			{
-				ErrorL << "Fmp4MuxerClient::muxer m_HeaderLen < 0! ";
+				WarnL << "Fmp4MuxerClient::muxer m_HeaderLen < 0! ";
 				return MSEErrCode_NoFmp4Header;
 			}
 				
@@ -74,7 +75,7 @@ namespace mediakit
 			m_FrameLen = m_Fmp4->getMoofFragment((unsigned char**)&m_Fmp4Frame);
 			if (m_FrameLen <= 0)
 			{
-				ErrorL << "Fmp4MuxerClient::muxer getMoofFragment error! ";
+				WarnL << "Fmp4MuxerClient::muxer getMoofFragment error! ";
 				return MSEErrCode_NoMediaFrame;
 			}				
 
@@ -100,4 +101,68 @@ namespace mediakit
 		}		
 	}
 
+	MSEErrCode Fmp4MuxerClient::inputFrame(const Frame::Ptr &frame, bool keyFrame)
+	{
+		if (!m_FirstKeyFrame)
+		{
+			m_FirstKeyFrame = keyFrame;
+			if (!m_FirstKeyFrame)
+			{
+				ErrorL << "Fmp4MuxerClient::muxer wait i frame! " << frame->getCodecId();
+				return MSEErrCode_NoKeyFrame;
+			}
+		}
+
+		MSEErrCode mutexRs = m_Fmp4->inputFrame(frame);
+
+		if (MSEErrCode_Success == mutexRs)
+		{
+			if (m_HeaderLen <= 0)
+				m_HeaderLen = m_Fmp4->getFtype((unsigned char**)&m_Fmp4Header);
+
+			if (m_HeaderLen <= 0)
+			{
+				ErrorL << "Fmp4MuxerClient::muxer m_HeaderLen < 0! ";
+				return MSEErrCode_NoFmp4Header;
+			}
+
+
+
+			m_FrameLen = m_Fmp4->getMoofFragment((unsigned char**)&m_Fmp4Frame);
+			if (m_FrameLen <= 0)
+			{
+				ErrorL << "Fmp4MuxerClient::muxer getMoofFragment error! ";
+				return MSEErrCode_NoMediaFrame;
+			}
+
+#ifdef WRITE_FILE
+			//write file for test
+			if (m_HeaderLen > 0 && !m_WriteHeader)
+			{
+				fwrite((const char*)m_Fmp4Header, m_HeaderLen, 1, (FILE*)m_File);
+				m_WriteHeader = true;
+			}
+
+			if (m_FrameLen > 0)
+				fwrite((const char*)m_Fmp4Frame, m_FrameLen, 1, (FILE*)m_File);
+#endif
+			//end write file
+
+			return MSEErrCode_Success;
+		}
+		else
+		{
+			ErrorL << "Fmp4MuxerClient::muxer mux error! " << frame->getCodecId();
+			return mutexRs;
+		}
+	}
+
+	void Fmp4MuxerClient::addTracks(vector<Track::Ptr> tracks)
+	{
+		for (auto track : tracks)
+		{
+			m_Fmp4->addTrack(track);
+		
+		}
+	}
 }

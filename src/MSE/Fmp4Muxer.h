@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "Extension/Frame.h"
+#include "Extension/Track.h"
+#include "Common/Stamp.h"
 
 #define GOP_BUF_LEN	 40 * 1024 * 1024
 #define FRAME_BUF_LEN	1024 * 1024 * 4
@@ -44,11 +46,12 @@ namespace mediakit
 		Fmp4Muxer(int width, int height, FragmentType type, int groupNum);
 		virtual ~Fmp4Muxer();
 
-		//0 成功  -1失败
-		int setADTS(unsigned char* adts, int bitsPerSample, int len) ;
+		void addTrack(const Track::Ptr &track);
+
+		MSEErrCode inputFrame(const Frame::Ptr &frame);
 
 		//0 成功  -1失败. nalu必须是完整帧，而不是单个NALU
-		MSEErrCode mux(CodecId frameType, unsigned char* nalu, int len, unsigned int pts, unsigned int dts=0) ;
+		MSEErrCode mux(CodecId frameType, unsigned char* nalu, int len, unsigned int pts, unsigned int dts=0);
 
 		//成功返回长度  -1失败
 		int getFtype(unsigned char **data) ;
@@ -63,6 +66,8 @@ namespace mediakit
 		uint64_t handleTell();
 
 		void handleFtypwriteCompleted();
+
+		void stampSync();
 
 	private:
 		int getStartCodeLen(unsigned char* nalu, int len);
@@ -84,5 +89,16 @@ namespace mediakit
 
 		uint64_t m_curIndex;
 		uint64_t m_FtypLen;
+		//key track type
+		//value track id
+		bool _have_video = false;
+		bool _started = false;
+		struct TrackInfo {
+			int track_id = -1;
+			Stamp stamp;
+		};
+		unordered_map<int, TrackInfo> _codec_to_trackid;
+
+		FrameMerger _frame_merger{ FrameMerger::mp4_nal_size };
 	};
 }

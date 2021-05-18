@@ -15,6 +15,7 @@
 #include "Util/ResourcePool.h"
 #include "Extension/H264.h"
 #include "Extension/H265.h"
+#include <stdio.h>
 
 using namespace std;
 using namespace toolkit;
@@ -27,10 +28,9 @@ namespace mediakit
 	class MSESession : public WebSocketSession, public MediaSourceEvent
 	{
 	public:
-		MSESession(const Socket::Ptr &pSock) : 
-			WebSocketSession(pSock) {}
+		MSESession(const Socket::Ptr &pSock);
 
-		virtual ~MSESession() {	}
+		virtual ~MSESession();
 
 		void attachServer(const TcpServer &server) override;
 
@@ -86,6 +86,10 @@ namespace mediakit
 		//ResourcePoolHelper<H265Frame> _h265FramePool;
 
 		ResourcePool_l<BufferRaw> _hRawFramePool;
+		RawMediaSource::RingDataType _muteAudioPool;
+		FILE* _testFile = nullptr;
+		int m_audioIindex = 0;
+		bool m_addMuteAudio = false;
 	};
 
 	struct MseSessionCreator

@@ -4,6 +4,7 @@
 #include <memory>
 #include <map>
 #include "Extension/Frame.h"
+#include "Extension/Track.h"
 #include "Fmp4Muxer.h"
 
 namespace mediakit
@@ -17,10 +18,13 @@ namespace mediakit
 		 * 构造h264类型的媒体
 		 * @param frameRate 外部不传入frame时,打包时
 		 */
-		Fmp4MuxerClient(int width, int height);
+		Fmp4MuxerClient(int width = 1920, int height = 1080);
 		~Fmp4MuxerClient();
 		MSEErrCode muxer(unsigned char* nalu, int len, bool keyFrame, unsigned int pts, unsigned int dts, CodecId type);
-		void freshFrameRate(int frameRate = 0);
+		MSEErrCode inputFrame(const Frame::Ptr &frame, bool keyFrame);
+		void freshFrameRate(int frameRate = 0) {};
+		void addTracks(vector<Track::Ptr> tracks);
+		
 
 	public:
 		std::shared_ptr<Fmp4Muxer> m_Fmp4;
