@@ -221,7 +221,8 @@ protected:
 		case WebSocketHeader::CLOSE: 
 		{
 			HttpSessionType::encode(header, nullptr);
-			_session->onClose();
+			if(_session)
+				_session->onClose();
 		}
 			break;
 									 
