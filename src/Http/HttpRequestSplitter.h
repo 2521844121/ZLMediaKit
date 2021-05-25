@@ -52,7 +52,7 @@ protected:
     virtual void onRecvContent(const char *data,size_t len) {};
 
     /**
-     * 判断数据中是否有包尾
+     * 判断数据中是否有包尾,不同协议覆盖onSearchPacketTail来解析自己的流格式
      * @param data 数据指针
      * @param len 数据长度
      * @return nullptr代表未找到包位，否则返回包尾指针

@@ -762,6 +762,7 @@ void RtmpProtocol::handle_chunk(RtmpPacket::Ptr packet) {
             break;
         }
 
+		//MSG_CMD, MSG_DATA, MSG_AUDIO, MSG_VIDEO							
         default: onRtmpChunk(std::move(packet)); break;
     }
 }
