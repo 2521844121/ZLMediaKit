@@ -291,6 +291,21 @@ onceToken token([](){
 } //namespace RtpProxy
 
 
+////////////UdpTs相关配置///////////
+namespace UdpTs {
+#define UDP_TS_FIELD "udp_ts."
+	//TS调试数据保存目录
+	const string kDumpDir = UDP_TS_FIELD"dumpDir";
+	//TS接收超时时间
+	const string kTimeoutSec = UDP_TS_FIELD"timeoutSec";
+
+	onceToken token([]() {
+		mINI::Instance()[kDumpDir] = "";
+		mINI::Instance()[kTimeoutSec] = 15;
+	}, nullptr);
+
+} //namespace UdpTs
+
 namespace Client {
 const string kNetAdapter = "net_adapter";
 const string kRtpType = "rtp_type";

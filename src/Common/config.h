@@ -306,6 +306,14 @@ extern const string kDumpDir;
 extern const string kTimeoutSec;
 } //namespace RtpProxy
 
+////////////UdpTs相关配置///////////
+namespace UdpTs {
+	//rtp调试数据保存目录,置空则不生成
+	extern const string kDumpDir;
+	//rtp接收超时时间
+	extern const string kTimeoutSec;
+} //namespace UdpTs
+
 /**
  * rtsp/rtmp播放器、推流器相关设置名，
  * 这些设置项都不是配置文件用
