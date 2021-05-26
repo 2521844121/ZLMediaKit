@@ -35,7 +35,9 @@
 #if defined(ENABLE_RTPPROXY)
 #include "Rtp/RtpServer.h"
 #endif
-
+#if defined(ENABLE_UDPTS)
+#include "Udp/UdpTsServer.h"
+#endif
 using namespace toolkit;
 using namespace mediakit;
 
@@ -241,6 +243,12 @@ static recursive_mutex s_ffmpegMapMtx;
 //rtp服务器列表
 static unordered_map<string, RtpServer::Ptr> s_rtpServerMap;
 static recursive_mutex s_rtpServerMapMtx;
+#endif
+
+#if defined(ENABLE_UDPTS)
+//rtp服务器列表
+static unordered_map<string, UDPTsServer::Ptr> s_udpServerMap;
+static recursive_mutex s_udpServerMapMtx;
 #endif
 
 static inline string getProxyKey(const string &vhost,const string &app,const string &stream){
@@ -916,6 +924,140 @@ void installWebApi() {
     });
 
 #endif//ENABLE_RTPPROXY
+
+#if defined(ENABLE_UDPTS)
+	api_regist("/index/api/getUdpInfo", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+		CHECK_ARGS("stream_id");
+
+		auto process = UdpTsSelector::Instance().getProcess(allArgs["stream_id"], false);
+		if (!process) {
+			val["exist"] = false;
+			return;
+		}
+		val["exist"] = true;
+		val["peer_ip"] = process->get_peer_ip();
+		val["peer_port"] = process->get_peer_port();
+		val["local_port"] = process->get_local_port();
+		val["local_ip"] = process->get_local_ip();
+	});
+
+	api_regist("/index/api/openUdpServer", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+		CHECK_ARGS("port", "stream_id");
+
+		auto stream_id = allArgs["stream_id"];
+		string local_ip = allArgs["local_ip"];
+		string multi_caster_ip = allArgs["multi_caster_ip"];
+
+
+		lock_guard<recursive_mutex> lck(s_udpServerMapMtx);
+		if (s_udpServerMap.find(stream_id) != s_udpServerMap.end()) {
+			throw InvalidArgsException("该stream_id已存在");
+		}
+
+		UDPTsServer::Ptr server = std::make_shared<UDPTsServer>();
+		server->start(allArgs["port"], stream_id, multi_caster_ip, local_ip);
+		server->setOnDetach([stream_id]() {
+			//设置rtp超时移除事件
+			lock_guard<recursive_mutex> lck(s_udpServerMapMtx);
+			s_udpServerMap.erase(stream_id);
+		});
+
+		//保存对象
+		s_udpServerMap.emplace(stream_id, server);
+		//回复json
+		val["port"] = server->getPort();
+	});
+
+	api_regist("/index/api/closeUdpServer", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+		CHECK_ARGS("stream_id");
+
+		lock_guard<recursive_mutex> lck(s_udpServerMapMtx);
+		auto it = s_udpServerMap.find(allArgs["stream_id"]);
+		if (it == s_udpServerMap.end()) {
+			val["hit"] = 0;
+			return;
+		}
+		auto server = it->second;
+		s_udpServerMap.erase(it);
+		val["hit"] = 1;
+	});
+
+	api_regist("/index/api/listUdpServer", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+
+		lock_guard<recursive_mutex> lck(s_udpServerMapMtx);
+		for (auto &pr : s_udpServerMap) {
+			Value obj;
+			obj["stream_id"] = pr.first;
+			obj["port"] = pr.second->getPort();
+			val["data"].append(obj);
+		}
+	});
+#if 0 //不支持UDP-TS 发送
+	api_regist("/index/api/startSendUdp", [](API_ARGS_MAP_ASYNC) {
+		CHECK_SECRET();
+		CHECK_ARGS("vhost", "app", "stream", "ssrc", "dst_url", "dst_port", "is_udp");
+
+		auto src = MediaSource::find(allArgs["vhost"], allArgs["app"], allArgs["stream"]);
+		if (!src) {
+			throw ApiRetException("该媒体流不存在", API::OtherFailed);
+		}
+
+		//src_port为空时，则随机本地端口
+		src->startSendRtp(allArgs["dst_url"], allArgs["dst_port"], allArgs["ssrc"], allArgs["is_udp"], allArgs["src_port"], [val, headerOut, invoker](uint16_t local_port, const SockException &ex) mutable {
+			if (ex) {
+				val["code"] = API::OtherFailed;
+				val["msg"] = ex.what();
+			}
+			val["local_port"] = local_port;
+			invoker(200, headerOut, val.toStyledString());
+		});
+	});
+
+	api_regist("/index/api/stopSendUdp", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+		CHECK_ARGS("vhost", "app", "stream");
+
+		auto src = MediaSource::find(allArgs["vhost"], allArgs["app"], allArgs["stream"]);
+		if (!src) {
+			throw ApiRetException("该媒体流不存在", API::OtherFailed);
+		}
+
+		//ssrc如果为空，关闭全部
+		if (!src->stopSendRtp(allArgs["ssrc"])) {
+			throw ApiRetException("尚未开始推流,停止失败", API::OtherFailed);
+		}
+	});
+#endif
+	api_regist("/index/api/pauseUdpCheck", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+		CHECK_ARGS("stream_id");
+		//只是暂停流的检查
+		auto udp_process = UdpTsSelector::Instance().getProcess(allArgs["stream_id"], false);
+		if (udp_process) {
+			udp_process->setStopCheck(true);
+		}
+		else {
+			val["code"] = API::NotFound;
+		}
+	});
+
+	api_regist("/index/api/resumeUdpCheck", [](API_ARGS_MAP) {
+		CHECK_SECRET();
+		CHECK_ARGS("stream_id");
+		auto udp_process = UdpTsSelector::Instance().getProcess(allArgs["stream_id"], false);
+		if (udp_process) {
+			udp_process->setStopCheck(false);
+		}
+		else {
+			val["code"] = API::NotFound;
+		}
+	});
+
+#endif//ENABLE_UDPTS
 
     // 开始录制hls或MP4
     api_regist("/index/api/startRecord",[](API_ARGS_MAP){
