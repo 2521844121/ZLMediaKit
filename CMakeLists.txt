@@ -56,6 +56,7 @@ option(ENABLE_SERVER "Enable Server" true)
 option(ENABLE_MEM_DEBUG "Enable Memory Debug" false)
 option(ENABLE_ASAN "Enable Address Sanitize" false)
 option(ENABLE_MSE "Enable MSE" true)
+option(ENABLE_UDPTS "Enable TS OVER UDP" true)
 
 if (ENABLE_MEM_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-wrap,free  -Wl,-wrap,malloc -Wl,-wrap,realloc -Wl,-wrap,calloc")
@@ -175,6 +176,11 @@ endif()
 if(ENABLE_RTPPROXY AND ENABLE_HLS)
     message(STATUS "ENABLE_RTPPROXY defined")
     add_definitions(-DENABLE_RTPPROXY)
+endif()
+
+if(ENABLE_UDPTS)
+    message(STATUS "ENABLE_UDPTS defined")
+    add_definitions(-DENABLE_UDPTS)
 endif()
 
 #收集源代码
