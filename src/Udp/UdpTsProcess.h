@@ -37,7 +37,7 @@ public:
      * @param data_len rtp数据长度
      * @return 是否解析成功
      */
-    bool inputUdp(bool is_udp, const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint32_t *dts_out = nullptr);
+    bool inputUdp(const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint32_t *dts_out = nullptr);
 
 
 	/// SockInfo override
@@ -46,6 +46,30 @@ public:
 	string get_peer_ip() override;
 	uint16_t get_peer_port() override;
 	string getIdentifier() const override;
+
+	/**
+	 * 是否超时，用于超时移除对象
+	 */
+	bool alive();
+
+	int getTotalReaderCount();
+
+	void setListener(const std::weak_ptr<MediaSourceEvent> &listener);
+
+	/**
+	 * 超时时被UdpTsSelector移除时触发
+	 */
+	void onDetach();
+
+	/**
+	 * 设置onDetach事件回调
+	 */
+	void setOnDetach(const function<void()> &cb);
+
+	/**
+	 * 设置onDetach事件回调,false检查RTP超时，true停止
+	 */
+	void setStopCheck(bool is_check = false);
 
 protected:
     //void onRtpSorted(RtpPacket::Ptr rtp, int track_index) override ; TS 排序??
@@ -78,6 +102,12 @@ private:
 	uint32_t _dts = 0;
 	uint64_t _total_bytes = 0;
 	Ticker _last_frame_time;
+
+	atomic_bool _stop_check{ false };
+	atomic_flag _busy_flag{ false };
+	Ticker _last_check_alive;
+
+	function<void()> _on_detach = nullptr;
 };
 
 }//namespace mediakit

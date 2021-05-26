@@ -31,7 +31,7 @@ UdpTsProcess::UdpTsProcess(const string &stream_id) {
 	_media_info._app = UDP_APP_NAME;
 	_media_info._streamid = stream_id;
 
-	GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
+	GET_CONFIG(string, dump_dir, UdpTs::kDumpDir);
 	{
 		FILE *fp = !dump_dir.empty() ? File::create_file(File::absolutePath(_media_info._streamid + ".video.ts", dump_dir).data(), "wb") : nullptr;
 		if (fp) {
@@ -47,7 +47,7 @@ UdpTsProcess::UdpTsProcess(const string &stream_id) {
 UdpTsProcess::~UdpTsProcess() 
 {
 	uint64_t duration = (_last_frame_time.createdTime() - _last_frame_time.elapsedTime()) / 1000;
-	WarnP(this) << "RTP推流器("
+	WarnP(this) << "UDP推流器("
 		<< _media_info._vhost << "/"
 		<< _media_info._app << "/"
 		<< _media_info._streamid
@@ -61,7 +61,7 @@ UdpTsProcess::~UdpTsProcess()
 }
 
 //mpeg-ts传输的时 1316(188*7)固定大小数据。每个udp包中有7个ts媒体数据
-bool UdpTsProcess::inputUdp(bool is_udp, const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint32_t *dts_out)
+bool UdpTsProcess::inputUdp(const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint32_t *dts_out)
 {
 	//ErrorL << " input udp " << len;
 	if (!_sock)
@@ -75,6 +75,8 @@ bool UdpTsProcess::inputUdp(bool is_udp, const Socket::Ptr &sock, const char *da
 	{//鉴权失败		
 		return false;
 	}
+
+	_total_bytes += len;
 
 	if (_save_file_ts && len>0) {
 		fwrite((uint8_t *)data, len, 1, _save_file_ts.get());
@@ -121,6 +123,7 @@ string UdpTsProcess::getIdentifier() const
 	return _media_info._streamid;
 }
 
+//是否需要对UDP收到的TS包做排序??
 //void UdpTsProcess::onRtpSorted(RtpPacket::Ptr rtp, int) {
 //    auto pt = rtp->getHeader()->pt;
 //    if (!_rtp_decoder) {
@@ -138,7 +141,7 @@ string UdpTsProcess::getIdentifier() const
 //                //ts或ps负载
 //                _rtp_decoder = std::make_shared<CommonRtpDecoder>(CodecInvalid, 32 * 1024);
 //                //设置dump目录
-//                GET_CONFIG(string, dump_dir, RtpProxy::kDumpDir);
+//                GET_CONFIG(string, dump_dir, UdpTs::kDumpDir);
 //                if (!dump_dir.empty()) {
 //                    auto save_path = File::absolutePath(_media_info._streamid + ".mp2", dump_dir);
 //                    _save_file_ps.reset(File::create_file(save_path.data(), "wb"), [](FILE *fp) {
@@ -244,6 +247,58 @@ std::shared_ptr<SockInfo> UdpTsProcess::getOriginSock(MediaSource &sender) const
 {
 	return const_cast<UdpTsProcess *>(this)->shared_from_this();
 }
+
+bool UdpTsProcess::alive()
+{
+	if (_stop_check.load()) {
+		if (_last_check_alive.elapsedTime() > 5 * 60 * 1000) {
+			//最多暂停5分钟的rtp超时检测，因为NAT映射有效期一般不会太长
+			_stop_check = false;
+		}
+		else {
+			return true;
+		}
+	}
+
+	_last_check_alive.resetTime();
+	GET_CONFIG(uint64_t, timeoutSec, UdpTs::kTimeoutSec)
+	if (_last_frame_time.elapsedTime() / 1000 < timeoutSec) {
+		return true;
+	}
+
+	return false;
+}
+
+int UdpTsProcess::getTotalReaderCount()
+{
+	return _muxer ? _muxer->totalReaderCount() : 0;
+}
+
+void UdpTsProcess::setListener(const std::weak_ptr<MediaSourceEvent> &listener)
+{
+	//listener被设置为 UdpTsProcessHelper,捕获close等事件,交给UdpTsProcessHelper处理
+	setDelegate(listener);
+}
+
+void UdpTsProcess::setStopCheck(bool is_check) {
+	_stop_check = is_check;
+	if (!is_check) {
+		_last_frame_time.resetTime();
+	}
+}
+
+void UdpTsProcess::onDetach() {
+
+	if (_on_detach) {
+		_on_detach();
+	}
+}
+
+void UdpTsProcess::setOnDetach(const function<void()> &cb) {
+	_on_detach = cb;
+}
+
+
 
 
 }//namespace mediakit

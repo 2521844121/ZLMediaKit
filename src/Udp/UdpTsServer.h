@@ -14,7 +14,7 @@
 #if defined(ENABLE_UDPTS)
 #include <memory>
 #include "Network/Socket.h"
-#include "UdpTsProcess.h"
+#include "UdpTsSelector.h"
 
 using namespace std;
 using namespace toolkit;
@@ -40,7 +40,7 @@ public:
 	 * @param multi_caster_ip 组播IP
 	 * @param multi_caster_port 组播端口
      */
-    void start(uint16_t local_port, const string &stream_id, const char *local_ip = "0.0.0.0", const char *multi_caster_ip = nullptr, uint16_t multi_caster_port=0);
+    void start(uint16_t local_port, const string &stream_id, const string &multi_caster_ip = "", const string &local_ip = "0.0.0.0");
 
     /**
      * 获取绑定的本地端口
