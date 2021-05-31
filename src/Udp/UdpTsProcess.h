@@ -32,9 +32,9 @@ public:
     ~UdpTsProcess() override;
 
     /**
-     * 输入rtp
-     * @param data rtp数据指针
-     * @param data_len rtp数据长度
+     * 输入ts
+     * @param data ts数据指针
+     * @param data_len ts数据长度
      * @return 是否解析成功
      */
     bool inputUdp(const Socket::Ptr &sock, const char *data, size_t len, const struct sockaddr *addr, uint32_t *dts_out = nullptr);

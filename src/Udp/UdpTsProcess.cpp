@@ -302,4 +302,4 @@ void UdpTsProcess::setOnDetach(const function<void()> &cb) {
 
 
 }//namespace mediakit
-#endif//defined(ENABLE_RTPPROXY)
+#endif//defined(ENABLE_UDPTS)

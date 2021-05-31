@@ -8,7 +8,7 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
-#if defined(ENABLE_RTPPROXY)
+#if defined(ENABLE_UDPTS)
 #include <stddef.h>
 #include "UdpTsSelector.h"
 
@@ -132,4 +132,4 @@ UdpTsProcess::Ptr &UdpTsProcessHelper::getProcess() {
 }
 
 }//namespace mediakit
-#endif//defined(ENABLE_RTPPROXY)
+#endif//defined(ENABLE_UDPTS)

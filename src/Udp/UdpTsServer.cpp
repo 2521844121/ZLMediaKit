@@ -89,4 +89,4 @@ uint16_t UDPTsServer::getPort() {
 }
 
 }//namespace mediakit
-#endif//defined(ENABLE_RTPPROXY)
+#endif//defined(ENABLE_UDPTS)
