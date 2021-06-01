@@ -306,6 +306,53 @@ namespace UdpTs {
 
 } //namespace UdpTs
 
+namespace Srt {
+
+#define SRT_FIELD "srt."
+	//service listen port
+	const string kSrtListenPort = SRT_FIELD"listenPort";
+	//Max bandwith, default is -1.
+	const string kSrtOMaxBW = SRT_FIELD"maxBandwith";
+	//Maximum Segment Size, default is 1500.
+	const string kSrtOMSS = SRT_FIELD"maxSegmentSize";
+	//latency, default is 0 which means peer/recv latency is 120ms.
+	const string kSrtOLatency = SRT_FIELD"latency";
+	//recv latency, default is 120ms.
+	const string kSrtORecvLatency = SRT_FIELD"recvLatency";
+	//peer latency, default is 0..
+	const string kSrtOPeerLatency = SRT_FIELD"peerLatency";
+	//h264 sei filter, default is on, it will drop h264 sei packet
+	const string kSrtSeiFilter = SRT_FIELD"seiFilter";
+	//Too-late Packet Drop, default is true
+	const string kSrtOTlpkDrop = SRT_FIELD"latePacketDrop";
+	//connection timeout, default is 3000ms.
+	const string kSrtOConnTimeout = SRT_FIELD"connTimeout";
+	//send buffer, default is 8192 × (1500-28).
+	const string kSrtSendbuf = SRT_FIELD"sendbuf";
+	//recv buffer, default is 8192 × (1500-28).
+	const string kSrtRecvbuf = SRT_FIELD"recvbuf";
+	//PAYLOADSIZE
+	const string kSrtPayloadSize = SRT_FIELD"payloadSize";
+	//mix_correct
+	const string kSrtMixCorrect = SRT_FIELD"mixCorrect";
+
+	onceToken token([]() {
+		mINI::Instance()[kSrtListenPort] = 9001;
+		mINI::Instance()[kSrtOMaxBW] = -1;
+		mINI::Instance()[kSrtOMSS] = 1500;
+		mINI::Instance()[kSrtOLatency] = 120;
+		mINI::Instance()[kSrtORecvLatency] = 120;
+		mINI::Instance()[kSrtOPeerLatency] = 0;
+		mINI::Instance()[kSrtSeiFilter] = true;
+		mINI::Instance()[kSrtOTlpkDrop] = true;
+		mINI::Instance()[kSrtOConnTimeout] = 3000;
+		mINI::Instance()[kSrtSendbuf] = 8192 * (1500 - 28);
+		mINI::Instance()[kSrtRecvbuf] = 8192 * (1500 - 28);
+		mINI::Instance()[kSrtPayloadSize] = 1316;
+		mINI::Instance()[kSrtMixCorrect] = true;
+	}, nullptr);
+} //namespace Srt
+
 namespace Client {
 const string kNetAdapter = "net_adapter";
 const string kRtpType = "rtp_type";

@@ -314,6 +314,36 @@ namespace UdpTs {
 	extern const string kTimeoutSec;
 } //namespace UdpTs
 
+////////////Srt相关配置///////////
+namespace Srt {
+	//service listen port
+	extern const string kSrtListenPort;
+	//Max bandwith, default is -1.
+	extern const string kSrtOMaxBW;
+	//Maximum Segment Size, default is 1500.
+	extern const string kSrtOMSS;
+	//latency, default is 0 which means peer/recv latency is 120ms.
+	extern const string kSrtOLatency;
+	//recv latency, default is 120ms.
+	extern const string kSrtORecvLatency;
+	//peer latency, default is 0..
+	extern const string kSrtOPeerLatency;
+	//h264 sei filter, default is on, it will drop h264 sei packet
+	extern const string kSrtSeiFilter;
+	//Too-late Packet Drop, default is true
+	extern const string kSrtOTlpkDrop;
+	//connection timeout, default is 3000ms.
+	extern const string kSrtOConnTimeout;
+	//send buffer, default is 8192 × (1500-28).
+	extern const string kSrtSendbuf;
+	//recv buffer, default is 8192 × (1500-28).
+	extern const string kSrtRecvbuf;
+	//PAYLOADSIZE
+	extern const string kSrtPayloadSize;
+	//mix_correct
+	extern const string kSrtMixCorrect;
+} //namespace Srt
+
 /**
  * rtsp/rtmp播放器、推流器相关设置名，
  * 这些设置项都不是配置文件用
