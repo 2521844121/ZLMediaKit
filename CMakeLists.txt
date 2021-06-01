@@ -57,6 +57,7 @@ option(ENABLE_MEM_DEBUG "Enable Memory Debug" false)
 option(ENABLE_ASAN "Enable Address Sanitize" false)
 option(ENABLE_MSE "Enable MSE" true)
 option(ENABLE_UDPTS "Enable TS OVER UDP" true)
+option(ENABLE_SRTTS "Enable SRTTS" true)
 
 if (ENABLE_MEM_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-wrap,free  -Wl,-wrap,malloc -Wl,-wrap,realloc -Wl,-wrap,calloc")
@@ -120,6 +121,15 @@ if (FAAC_FOUND AND ENABLE_FAAC)
     list(APPEND LINK_LIB_LIST ${FAAC_LIBRARIES})
 endif ()
 
+find_package(SRT QUIET)
+if(SRT_FOUND)
+    message(STATUS "found library:\"${SRT_LIBRARIES}\"")
+    include_directories(${SRT_INCLUDE_DIR})
+    list(APPEND  LINK_LIB_LIST ${SRT_LIBRARIES})
+else()
+	message(STATUS "SRT_LIBRARIES NOT found library")
+endif ()
+
 #set(VS_FALGS "/wd4819 /wd4996 /wd4018 /wd4267 /wd4244 /wd4101 /wd4828 /wd4309 /wd4573 /wd4996" )
 set(VS_FALGS "/wd4819" )
 
@@ -166,22 +176,30 @@ if(ENABLE_MP4 OR ENABLE_MSE)
 endif()
 
 #添加rtp库用于rtp转ps/ts
-if(ENABLE_MSE)
-    message(STATUS " AND ENABLE_HLS defined")
-	add_definitions(-DENABLE_MSE)
-endif()
-
-
-#添加rtp库用于rtp转ps/ts
 if(ENABLE_RTPPROXY AND ENABLE_HLS)
     message(STATUS "ENABLE_RTPPROXY defined")
     add_definitions(-DENABLE_RTPPROXY)
 endif()
 
-if(ENABLE_UDPTS)
+
+#MSE 模块依赖HLS
+if(ENABLE_MSE AND ENABLE_HLS)
+    message(STATUS " AND ENABLE_HLS defined")
+	add_definitions(-DENABLE_MSE)
+endif()
+
+#UDPTS模块依赖RTPPROXY和HLS
+if(ENABLE_UDPTS AND ENABLE_RTPPROXY AND ENABLE_HLS)
     message(STATUS "ENABLE_UDPTS defined")
     add_definitions(-DENABLE_UDPTS)
 endif()
+
+#SRTTS模块依赖RTPPROXY HLS SRT
+if(ENABLE_SRTTS AND ENABLE_RTPPROXY AND ENABLE_HLS AND SRT_FOUND)
+    message(STATUS "ENABLE_SRTTS defined")
+    add_definitions(-DENABLE_SRTTS)
+endif()
+
 
 #收集源代码
 file(GLOB ToolKit_src_list ${ToolKit_Root}/*/*.cpp ${ToolKit_Root}/*/*.h ${ToolKit_Root}/*/*.c)
