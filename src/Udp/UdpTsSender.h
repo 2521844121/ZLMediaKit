@@ -8,10 +8,10 @@
  * may be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef ZLMEDIAKIT_RTPSENDER_H
-#define ZLMEDIAKIT_RTPSENDER_H
-#if defined(ENABLE_RTPPROXY)
-#include "PSEncoder.h"
+#ifndef ZLMEDIAKIT_UDPTSSENDER_H
+#define ZLMEDIAKIT_UDPTSSENDER_H
+#if defined(ENABLE_UDPTS)
+#include "Rtp/PSEncoder.h"
 #include "Extension/CommonRtp.h"
 
 namespace mediakit{
@@ -82,5 +82,5 @@ private:
 };
 
 }//namespace mediakit
-#endif// defined(ENABLE_RTPPROXY)
-#endif //ZLMEDIAKIT_RTPSENDER_H
+#endif// defined(ENABLE_UDPTS)
+#endif //ZLMEDIAKIT_UDPTSSENDER_H
