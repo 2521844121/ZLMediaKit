@@ -84,7 +84,7 @@ endif()
 
 #查找openssl是否安装
 find_package(OpenSSL QUIET)
-if (OPENSSL_FOUND AND ENABLE_OPENSSL)
+if (OpenSSL_FOUND AND ENABLE_OPENSSL)
     message(STATUS "found library:${OPENSSL_LIBRARIES},ENABLE_OPENSSL defined")
     include_directories(${OPENSSL_INCLUDE_DIR})
     add_definitions(-DENABLE_OPENSSL)
@@ -122,12 +122,12 @@ if (FAAC_FOUND AND ENABLE_FAAC)
 endif ()
 
 find_package(SRT QUIET)
-if(SRT_FOUND)
+if(OPENSSL_FOUND AND SRT_FOUND AND ENABLE_SRTTS)
     message(STATUS "found library:\"${SRT_LIBRARIES}\"")
-    include_directories(${SRT_INCLUDE_DIR})
-    list(APPEND  LINK_LIB_LIST ${SRT_LIBRARIES})
+    include_directories(${SRT_INCLUDE_DIRS})
+	list(APPEND  LINK_LIB_LIST ${SRT_LIBRARIES})
 else()
-	message(STATUS "SRT_LIBRARIES NOT found library")
+	message(WARNING "srt库未找到，或者未使能ENABLE_SRTTS")
 endif ()
 
 #set(VS_FALGS "/wd4819 /wd4996 /wd4018 /wd4267 /wd4244 /wd4101 /wd4828 /wd4309 /wd4573 /wd4996" )
@@ -135,7 +135,7 @@ set(VS_FALGS "/wd4819" )
 
 #添加mpeg用于支持ts生成
 if(ENABLE_HLS)
-    message(STATUS "ENABLE_HLS defined")
+    message(STATUS "ENABLE_HLS defined  123 ${src_mpeg}")
     add_definitions(-DENABLE_HLS)
 
     include_directories(${MediaServer_Root}/libmpeg/include)
@@ -195,7 +195,7 @@ if(ENABLE_UDPTS AND ENABLE_RTPPROXY AND ENABLE_HLS)
 endif()
 
 #SRTTS模块依赖RTPPROXY HLS SRT
-if(ENABLE_SRTTS AND ENABLE_RTPPROXY AND ENABLE_HLS AND SRT_FOUND)
+if(ENABLE_SRTTS AND ENABLE_RTPPROXY AND ENABLE_HLS AND OPENSSL_FOUND AND SRT_FOUND)
     message(STATUS "ENABLE_SRTTS defined")
     add_definitions(-DENABLE_SRTTS)
 endif()
@@ -266,3 +266,4 @@ if (NOT IOS)
         add_subdirectory(server)
     endif()
 endif ()
+
